@@ -279,6 +279,78 @@ cd ../feature-branch && claude
 | Batch processing | `for f in *.js; do claude -p "process $f"; done` |
 | CI integration | `--allowedTools` + `--output-format json` |
 
+## Session State Recognition
+
+| You See | State | Action |
+|---------|-------|--------|
+| Spinner moving | Working | Wait |
+| `[Y/n]` or `[A/R/D]` | Needs permission | Respond |
+| Blinking cursor at `>` | Idle/done | Review, give next task |
+| Red error text | Failed | Diagnose |
+| No output, frozen | Stuck | `Ctrl+C`, investigate |
+
+## Permission Responses
+
+| Key | Effect |
+|-----|--------|
+| `Y` / `Enter` | Allow once |
+| `A` | Always allow (session) |
+| `D` | Don't allow |
+| `R` | Reject with feedback |
+| `?` | Show more info |
+
+## Notification Setup (Essential)
+
+**macOS:**
+```json
+{"hooks":{"Notification":[{"matcher":"","hooks":[{"type":"command","command":"osascript -e 'display notification \"Claude needs attention\" with title \"Claude Code\" sound name \"Glass\"'"}]}]}}
+```
+
+**Linux:**
+```json
+{"hooks":{"Notification":[{"matcher":"","hooks":[{"type":"command","command":"notify-send -u critical 'Claude Code' \"$(cat | jq -r '.message')\""}]}]}}
+```
+
+**Terminal bell:**
+```json
+{"hooks":{"Notification":[{"matcher":"permission_prompt","hooks":[{"type":"command","command":"printf '\\a'"}]}]}}
+```
+
+## Multi-Session Management
+
+```bash
+# tmux (recommended for multiple sessions)
+tmux new-session -d -s claude-1 'claude'
+tmux new-session -d -s claude-2 'claude'
+tmux attach -t claude-1
+# Ctrl+B s to switch sessions
+
+# List Claude sessions
+claude --resume
+
+# Check what's running
+pgrep -af claude
+```
+
+## Before Leaving a Session
+
+1. Check for pending permission prompts
+2. Verify task state (done? blocked?)
+3. Name session if important: `/rename feature-name`
+4. Set up notifications if continuing unattended
+
+## Recovery Quick Commands
+
+| Problem | Command |
+|---------|---------|
+| Resume disconnected | `claude --resume` |
+| Session stuck | `Ctrl+C`, then `claude --resume` |
+| Undo bad changes | `/rewind` |
+| Context full | `/compact` or `/clear` |
+| Wrong direction | `Ctrl+C`, then redirect or `/rewind` |
+| Find session by name | `claude --resume "name"` |
+| Check health | `claude doctor` |
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -288,3 +360,14 @@ cd ../feature-branch && claude
 | Repeated mistakes | `/clear`, write better prompt |
 | Tool permission issues | Check `/permissions` |
 | MCP not working | `claude mcp list`, restart server |
+| Session won't resume | Try `--fork-session` flag |
+| Notifications not working | Test hook script directly |
+
+## Responsible Automation Checklist
+
+Before unattended operation:
+- [ ] Notifications configured (especially `permission_prompt`)
+- [ ] Permission rules set for expected actions
+- [ ] `--max-turns` or `--max-budget-usd` set
+- [ ] Session named for tracking
+- [ ] Recovery plan if things go wrong
